@@ -1,25 +1,19 @@
+import java.util.ArrayList;
 import java.util.Scanner;
 
 public class MenuPrincipal {
 
-    static Scanner sc = new Scanner(System.in);
-
     // ==========================
-    // ESTRUTURA DE DADOS
+    // DEPENDÊNCIAS E COLEÇÕES
     // ==========================
+    static Scanner          sc           = new Scanner(System.in);
+    static ArrayList<Produto>   produtos     = new ArrayList<>();
+    static ArrayList<Categoria> categorias   = new ArrayList<>();
 
-    // Categorias
-    static String[] nomeCategorias   = new String[20];
-    static int      totalCategorias  = 0;
+    static int proximoIdProduto   = 1;
+    static int proximoIdCategoria = 1;
 
-    // Produtos
-    static String[] nomeProdutos     = new String[100];
-    static double[] precoProdutos    = new double[100];
-    static int[]    quantProdutos    = new int[100];
-    static int[]    categoriaProduto = new int[100]; // índice da categoria
-    static int      totalProdutos    = 0;
-
-    static final int ESTOQUE_BAIXO   = 5; // limite para alerta
+    static final int ESTOQUE_BAIXO = 5;
 
     // ==========================
     // MAIN
@@ -92,7 +86,7 @@ public class MenuPrincipal {
 
             switch (opcao) {
                 case 1:  cadastrarProduto();  break;
-                case 2:  listarProduto();     break;
+                case 2:  listarProdutos();    break;
                 case 3:  alterarProduto();    break;
                 case 4:  excluirProduto();    break;
                 case 0:
@@ -131,7 +125,7 @@ public class MenuPrincipal {
 
             switch (opcao) {
                 case 1:  cadastrarCategoria();  break;
-                case 2:  listarCategoria();     break;
+                case 2:  listarCategorias();    break;
                 case 3:  alterarCategoria();    break;
                 case 4:  excluirCategoria();    break;
                 case 0:
@@ -156,7 +150,7 @@ public class MenuPrincipal {
             limparTela();
 
             System.out.println("=================================");
-            System.out.println("           RELATÓRIOS");
+            System.out.println("            RELATÓRIOS");
             System.out.println("=================================");
             System.out.println("1. Relatório de Estoque");
             System.out.println("2. Relatório por Categoria");
@@ -189,17 +183,11 @@ public class MenuPrincipal {
         limparTela();
 
         System.out.println("=================================");
-        System.out.println("        INSERIR PRODUTO");
+        System.out.println("         INSERIR PRODUTO");
         System.out.println("=================================");
 
-        if (totalCategorias == 0) {
+        if (categorias.isEmpty()) {
             System.out.println("ERRO: Cadastre ao menos uma categoria antes de inserir produtos.");
-            pressionarEnter();
-            return;
-        }
-
-        if (totalProdutos >= nomeProdutos.length) {
-            System.out.println("ERRO: Limite máximo de produtos atingido.");
             pressionarEnter();
             return;
         }
@@ -227,36 +215,40 @@ public class MenuPrincipal {
         System.out.print("Quantidade em estoque: ");
         int quantidade = lerInteiroPositivo();
 
-        if (quantidade < 0) {
-            System.out.println("ERRO: Quantidade não pode ser negativa.");
-            pressionarEnter();
-            return;
-        }
-
+        // Exibe categorias disponíveis para escolha
         System.out.println("\nCategorias disponíveis:");
-        for (int i = 0; i < totalCategorias; i++) {
-            System.out.println("  " + (i + 1) + ". " + nomeCategorias[i]);
+        for (int i = 0; i < categorias.size(); i++) {
+            System.out.println("  " + (i + 1) + ". " + categorias.get(i).getNome());
         }
         System.out.print("Escolha o número da categoria: ");
         int numCategoria = lerInteiroPositivo();
 
-        if (numCategoria < 1 || numCategoria > totalCategorias) {
+        if (numCategoria < 1 || numCategoria > categorias.size()) {
             System.out.println("ERRO: Categoria inválida.");
             pressionarEnter();
             return;
         }
 
-        nomeProdutos[totalProdutos]     = nome;
-        precoProdutos[totalProdutos]    = preco;
-        quantProdutos[totalProdutos]    = quantidade;
-        categoriaProduto[totalProdutos] = numCategoria - 1; // índice 0-based
-        totalProdutos++;
+        // Recupera o objeto Categoria selecionado
+        Categoria categoriaSelecionada = categorias.get(numCategoria - 1);
+
+        // Cria o objeto Produto com todos os dados
+        Produto novoProduto = new Produto(
+                proximoIdProduto++,
+                nome,
+                preco,
+                quantidade,
+                categoriaSelecionada
+        );
+
+        produtos.add(novoProduto);
 
         System.out.println("\nProduto cadastrado com sucesso!");
+        System.out.println(novoProduto);
         pressionarEnter();
     }
 
-    public static void listarProduto() {
+    public static void listarProdutos() {
 
         limparTela();
 
@@ -264,7 +256,7 @@ public class MenuPrincipal {
         System.out.println("         LISTA DE PRODUTOS");
         System.out.println("=================================");
 
-        if (totalProdutos == 0) {
+        if (produtos.isEmpty()) {
             System.out.println("Nenhum produto cadastrado.");
             pressionarEnter();
             return;
@@ -272,29 +264,27 @@ public class MenuPrincipal {
 
         boolean temEstoqueBaixo = false;
 
-        System.out.printf("%-4s %-20s %-12s %-10s %-15s%n",
-                "#", "Nome", "Preço", "Qtd", "Categoria");
-        System.out.println("-".repeat(65));
+        System.out.printf("%-5s %-20s %-12s %-8s %-15s%n",
+                "ID", "Nome", "Preço", "Qtd", "Categoria");
+        System.out.println("-".repeat(63));
 
-        for (int i = 0; i < totalProdutos; i++) {
-            String alerta = quantProdutos[i] <= ESTOQUE_BAIXO ? " ⚠" : "";
-            String cat    = nomeCategorias[categoriaProduto[i]];
-
-            System.out.printf("%-4d %-20s R$ %-9.2f %-10d %-15s%s%n",
-                    (i + 1),
-                    nomeProdutos[i],
-                    precoProdutos[i],
-                    quantProdutos[i],
-                    cat,
+        for (Produto p : produtos) {
+            String alerta = p.getQuantidade() <= ESTOQUE_BAIXO ? " ⚠" : "";
+            System.out.printf("%-5d %-20s R$ %-9.2f %-8d %-15s%s%n",
+                    p.getId(),
+                    p.getNome(),
+                    p.getPreco(),
+                    p.getQuantidade(),
+                    p.getCategoria().getNome(),
                     alerta);
 
-            if (quantProdutos[i] <= ESTOQUE_BAIXO) {
+            if (p.getQuantidade() <= ESTOQUE_BAIXO) {
                 temEstoqueBaixo = true;
             }
         }
 
-        System.out.println("-".repeat(65));
-        System.out.println("Total de produtos: " + totalProdutos);
+        System.out.println("-".repeat(63));
+        System.out.println("Total de produtos: " + produtos.size());
 
         if (temEstoqueBaixo) {
             System.out.println("\n⚠  ALERTA: Há produtos com estoque baixo (≤ " + ESTOQUE_BAIXO + " unidades)!");
@@ -311,27 +301,27 @@ public class MenuPrincipal {
         System.out.println("         ALTERAR PRODUTO");
         System.out.println("=================================");
 
-        if (totalProdutos == 0) {
+        if (produtos.isEmpty()) {
             System.out.println("Nenhum produto cadastrado.");
             pressionarEnter();
             return;
         }
 
-        listarProdutosResumido();
+        exibirProdutosResumido();
 
-        System.out.print("Número do produto a alterar: ");
-        int num = lerInteiroPositivo();
+        System.out.print("ID do produto a alterar: ");
+        int id = lerInteiroPositivo();
 
-        if (num < 1 || num > totalProdutos) {
-            System.out.println("ERRO: Número de produto inválido.");
+        Produto produto = buscarProdutoPorId(id);
+
+        if (produto == null) {
+            System.out.println("ERRO: Produto com ID " + id + " não encontrado.");
             pressionarEnter();
             return;
         }
 
-        int idx = num - 1;
-        System.out.println("\nProduto selecionado: " + nomeProdutos[idx]);
-        System.out.println("Preço atual: R$ " + String.format("%.2f", precoProdutos[idx]));
-
+        System.out.println("\nProduto selecionado: " + produto.getNome());
+        System.out.printf("Preço atual: R$ %.2f%n", produto.getPreco());
         System.out.print("Novo preço (R$): ");
         double novoPreco = lerDecimalPositivo();
 
@@ -341,8 +331,11 @@ public class MenuPrincipal {
             return;
         }
 
-        precoProdutos[idx] = novoPreco;
+        // Atualiza o atributo do objeto via setter
+        produto.setPreco(novoPreco);
+
         System.out.println("\nProduto alterado com sucesso!");
+        System.out.println(produto);
         pressionarEnter();
     }
 
@@ -354,38 +347,32 @@ public class MenuPrincipal {
         System.out.println("         EXCLUIR PRODUTO");
         System.out.println("=================================");
 
-        if (totalProdutos == 0) {
+        if (produtos.isEmpty()) {
             System.out.println("Nenhum produto cadastrado.");
             pressionarEnter();
             return;
         }
 
-        listarProdutosResumido();
+        exibirProdutosResumido();
 
-        System.out.print("Número do produto a excluir: ");
-        int num = lerInteiroPositivo();
+        System.out.print("ID do produto a excluir: ");
+        int id = lerInteiroPositivo();
 
-        if (num < 1 || num > totalProdutos) {
-            System.out.println("ERRO: Número de produto inválido.");
+        Produto produto = buscarProdutoPorId(id);
+
+        if (produto == null) {
+            System.out.println("ERRO: Produto com ID " + id + " não encontrado.");
             pressionarEnter();
             return;
         }
 
-        int idx = num - 1;
-        System.out.println("\nProduto selecionado: " + nomeProdutos[idx]);
+        System.out.println("\nProduto selecionado: " + produto.getNome());
         System.out.print("Confirma a exclusão? (S/N): ");
         sc.nextLine(); // limpa buffer
         String confirmacao = sc.nextLine().trim().toUpperCase();
 
         if (confirmacao.equals("S")) {
-            // Remove deslocando os elementos
-            for (int i = idx; i < totalProdutos - 1; i++) {
-                nomeProdutos[i]     = nomeProdutos[i + 1];
-                precoProdutos[i]    = precoProdutos[i + 1];
-                quantProdutos[i]    = quantProdutos[i + 1];
-                categoriaProduto[i] = categoriaProduto[i + 1];
-            }
-            totalProdutos--;
+            produtos.remove(produto); // remove o objeto da lista
             System.out.println("\nProduto excluído com sucesso!");
         } else {
             System.out.println("\nExclusão cancelada.");
@@ -403,14 +390,8 @@ public class MenuPrincipal {
         limparTela();
 
         System.out.println("=================================");
-        System.out.println("        INSERIR CATEGORIA");
+        System.out.println("         INSERIR CATEGORIA");
         System.out.println("=================================");
-
-        if (totalCategorias >= nomeCategorias.length) {
-            System.out.println("ERRO: Limite máximo de categorias atingido.");
-            pressionarEnter();
-            return;
-        }
 
         sc.nextLine(); // limpa buffer
 
@@ -423,14 +404,16 @@ public class MenuPrincipal {
             return;
         }
 
-        nomeCategorias[totalCategorias] = nome;
-        totalCategorias++;
+        // Cria o objeto Categoria com ID auto-incrementado
+        Categoria novaCategoria = new Categoria(proximoIdCategoria++, nome);
+        categorias.add(novaCategoria);
 
         System.out.println("\nCategoria cadastrada com sucesso!");
+        System.out.println(novaCategoria);
         pressionarEnter();
     }
 
-    public static void listarCategoria() {
+    public static void listarCategorias() {
 
         limparTela();
 
@@ -438,26 +421,23 @@ public class MenuPrincipal {
         System.out.println("        LISTA DE CATEGORIAS");
         System.out.println("=================================");
 
-        if (totalCategorias == 0) {
+        if (categorias.isEmpty()) {
             System.out.println("Nenhuma categoria cadastrada.");
             pressionarEnter();
             return;
         }
 
-        System.out.printf("%-4s %-25s %-15s%n", "#", "Nome", "Qtd. Produtos");
-        System.out.println("-".repeat(48));
+        System.out.printf("%-5s %-25s %-15s%n", "ID", "Nome", "Qtd. Produtos");
+        System.out.println("-".repeat(47));
 
-        for (int i = 0; i < totalCategorias; i++) {
-            int qtdProdutos = contarProdutosDaCategoria(i);
-            System.out.printf("%-4d %-25s %-15d%n",
-                    (i + 1),
-                    nomeCategorias[i],
-                    qtdProdutos);
+        for (Categoria c : categorias) {
+            int qtd = contarProdutosDaCategoria(c);
+            System.out.printf("%-5d %-25s %-15d%n",
+                    c.getId(), c.getNome(), qtd);
         }
 
-        System.out.println("-".repeat(48));
-        System.out.println("Total de categorias: " + totalCategorias);
-
+        System.out.println("-".repeat(47));
+        System.out.println("Total de categorias: " + categorias.size());
         pressionarEnter();
     }
 
@@ -466,29 +446,29 @@ public class MenuPrincipal {
         limparTela();
 
         System.out.println("=================================");
-        System.out.println("        ALTERAR CATEGORIA");
+        System.out.println("         ALTERAR CATEGORIA");
         System.out.println("=================================");
 
-        if (totalCategorias == 0) {
+        if (categorias.isEmpty()) {
             System.out.println("Nenhuma categoria cadastrada.");
             pressionarEnter();
             return;
         }
 
-        listarCategoriasResumido();
+        exibirCategoriasResumido();
 
-        System.out.print("Número da categoria a alterar: ");
-        int num = lerInteiroPositivo();
+        System.out.print("ID da categoria a alterar: ");
+        int id = lerInteiroPositivo();
 
-        if (num < 1 || num > totalCategorias) {
-            System.out.println("ERRO: Número de categoria inválido.");
+        Categoria categoria = buscarCategoriaPorId(id);
+
+        if (categoria == null) {
+            System.out.println("ERRO: Categoria com ID " + id + " não encontrada.");
             pressionarEnter();
             return;
         }
 
-        int idx = num - 1;
-        System.out.println("\nCategoria selecionada: " + nomeCategorias[idx]);
-
+        System.out.println("\nCategoria selecionada: " + categoria.getNome());
         sc.nextLine(); // limpa buffer
         System.out.print("Novo nome: ");
         String novoNome = sc.nextLine().trim();
@@ -499,8 +479,11 @@ public class MenuPrincipal {
             return;
         }
 
-        nomeCategorias[idx] = novoNome;
+        // Atualiza o atributo do objeto via setter
+        categoria.setNome(novoNome);
+
         System.out.println("\nCategoria alterada com sucesso!");
+        System.out.println(categoria);
         pressionarEnter();
     }
 
@@ -509,55 +492,46 @@ public class MenuPrincipal {
         limparTela();
 
         System.out.println("=================================");
-        System.out.println("        EXCLUIR CATEGORIA");
+        System.out.println("         EXCLUIR CATEGORIA");
         System.out.println("=================================");
 
-        if (totalCategorias == 0) {
+        if (categorias.isEmpty()) {
             System.out.println("Nenhuma categoria cadastrada.");
             pressionarEnter();
             return;
         }
 
-        listarCategoriasResumido();
+        exibirCategoriasResumido();
 
-        System.out.print("Número da categoria a excluir: ");
-        int num = lerInteiroPositivo();
+        System.out.print("ID da categoria a excluir: ");
+        int id = lerInteiroPositivo();
 
-        if (num < 1 || num > totalCategorias) {
-            System.out.println("ERRO: Número de categoria inválido.");
+        Categoria categoria = buscarCategoriaPorId(id);
+
+        if (categoria == null) {
+            System.out.println("ERRO: Categoria com ID " + id + " não encontrada.");
             pressionarEnter();
             return;
         }
-
-        int idx = num - 1;
 
         // Bloqueia exclusão se houver produtos vinculados
-        int qtdProdutos = contarProdutosDaCategoria(idx);
-        if (qtdProdutos > 0) {
-            System.out.println("\nERRO: Não é possível excluir a categoria \"" + nomeCategorias[idx]
-                    + "\" pois ela possui " + qtdProdutos + " produto(s) vinculado(s).");
-            System.out.println("Remova ou realoque os produtos antes de excluir a categoria.");
+        int qtdVinculados = contarProdutosDaCategoria(categoria);
+        if (qtdVinculados > 0) {
+            System.out.println("\nERRO: Não é possível excluir a categoria \""
+                    + categoria.getNome() + "\".");
+            System.out.println("Ela possui " + qtdVinculados + " produto(s) vinculado(s).");
+            System.out.println("Remova ou realoque os produtos antes de excluir.");
             pressionarEnter();
             return;
         }
 
-        System.out.println("\nCategoria selecionada: " + nomeCategorias[idx]);
+        System.out.println("\nCategoria selecionada: " + categoria.getNome());
         System.out.print("Confirma a exclusão? (S/N): ");
         sc.nextLine(); // limpa buffer
         String confirmacao = sc.nextLine().trim().toUpperCase();
 
         if (confirmacao.equals("S")) {
-            // Reajusta índices dos produtos que apontam para categorias posteriores
-            for (int i = 0; i < totalProdutos; i++) {
-                if (categoriaProduto[i] > idx) {
-                    categoriaProduto[i]--;
-                }
-            }
-            // Remove a categoria deslocando elementos
-            for (int i = idx; i < totalCategorias - 1; i++) {
-                nomeCategorias[i] = nomeCategorias[i + 1];
-            }
-            totalCategorias--;
+            categorias.remove(categoria); // remove o objeto da lista
             System.out.println("\nCategoria excluída com sucesso!");
         } else {
             System.out.println("\nExclusão cancelada.");
@@ -575,59 +549,58 @@ public class MenuPrincipal {
         limparTela();
 
         System.out.println("=================================");
-        System.out.println("       RELATÓRIO DE ESTOQUE");
+        System.out.println("        RELATÓRIO DE ESTOQUE");
         System.out.println("=================================");
 
-        if (totalProdutos == 0) {
+        if (produtos.isEmpty()) {
             System.out.println("Nenhum produto cadastrado.");
             pressionarEnter();
             return;
         }
 
-        double valorTotal     = 0;
-        int    prodBaixo      = 0;
+        double valorTotal    = 0;
+        int    totalBaixo    = 0;
 
-        // Calcula totais
-        for (int i = 0; i < totalProdutos; i++) {
-            valorTotal += precoProdutos[i] * quantProdutos[i];
-            if (quantProdutos[i] <= ESTOQUE_BAIXO) {
-                prodBaixo++;
+        for (Produto p : produtos) {
+            valorTotal += p.getPreco() * p.getQuantidade();
+            if (p.getQuantidade() <= ESTOQUE_BAIXO) {
+                totalBaixo++;
             }
         }
 
-        System.out.println("Total de produtos cadastrados : " + totalProdutos);
-        System.out.printf( "Valor total em estoque        : R$ %.2f%n", valorTotal);
-        System.out.println("Produtos com estoque baixo    : " + prodBaixo
+        System.out.println("Total de produtos       : " + produtos.size());
+        System.out.printf( "Valor total em estoque  : R$ %.2f%n", valorTotal);
+        System.out.println("Produtos c/ estoque baixo: " + totalBaixo
                 + " (≤ " + ESTOQUE_BAIXO + " unidades)");
 
-        // Valor por categoria
+        // Valor detalhado por categoria
         System.out.println("\n--- Valor por Categoria ---");
-        System.out.printf("%-25s %-10s %-15s%n", "Categoria", "Produtos", "Valor Total");
+        System.out.printf("%-5s %-20s %-10s %-15s%n", "ID", "Categoria", "Produtos", "Valor Total");
         System.out.println("-".repeat(53));
 
-        for (int c = 0; c < totalCategorias; c++) {
-            double valorCat  = 0;
-            int    qtdCat    = 0;
-            for (int p = 0; p < totalProdutos; p++) {
-                if (categoriaProduto[p] == c) {
-                    valorCat += precoProdutos[p] * quantProdutos[p];
+        for (Categoria c : categorias) {
+            double valorCat = 0;
+            int    qtdCat   = 0;
+            for (Produto p : produtos) {
+                if (p.getCategoria().getId() == c.getId()) {
+                    valorCat += p.getPreco() * p.getQuantidade();
                     qtdCat++;
                 }
             }
-            System.out.printf("%-25s %-10d R$ %.2f%n",
-                    nomeCategorias[c], qtdCat, valorCat);
+            System.out.printf("%-5d %-20s %-10d R$ %.2f%n",
+                    c.getId(), c.getNome(), qtdCat, valorCat);
         }
 
         System.out.println("-".repeat(53));
 
-        // Produtos com estoque baixo listados
-        if (prodBaixo > 0) {
+        // Lista produtos com estoque baixo
+        if (totalBaixo > 0) {
             System.out.println("\n⚠  Produtos com estoque baixo:");
-            for (int i = 0; i < totalProdutos; i++) {
-                if (quantProdutos[i] <= ESTOQUE_BAIXO) {
-                    System.out.println("   - " + nomeProdutos[i]
-                            + " | Qtd: " + quantProdutos[i]
-                            + " | Categoria: " + nomeCategorias[categoriaProduto[i]]);
+            for (Produto p : produtos) {
+                if (p.getQuantidade() <= ESTOQUE_BAIXO) {
+                    System.out.println("   - " + p.getNome()
+                            + " | Qtd: " + p.getQuantidade()
+                            + " | Categoria: " + p.getCategoria().getNome());
                 }
             }
         }
@@ -643,93 +616,116 @@ public class MenuPrincipal {
         System.out.println("      RELATÓRIO POR CATEGORIA");
         System.out.println("=================================");
 
-        if (totalCategorias == 0) {
+        if (categorias.isEmpty()) {
             System.out.println("Nenhuma categoria cadastrada.");
             pressionarEnter();
             return;
         }
 
-        listarCategoriasResumido();
+        exibirCategoriasResumido();
 
-        System.out.print("Número da categoria: ");
-        int num = lerInteiroPositivo();
+        System.out.print("ID da categoria: ");
+        int id = lerInteiroPositivo();
 
-        if (num < 1 || num > totalCategorias) {
-            System.out.println("ERRO: Categoria inválida.");
+        Categoria categoria = buscarCategoriaPorId(id);
+
+        if (categoria == null) {
+            System.out.println("ERRO: Categoria com ID " + id + " não encontrada.");
             pressionarEnter();
             return;
         }
 
-        int    idx       = num - 1;
-        double valorCat  = 0;
-        int    qtdItens  = 0;
-
         limparTela();
 
         System.out.println("=================================");
-        System.out.println("Categoria: " + nomeCategorias[idx]);
+        System.out.println("Categoria: " + categoria.getNome());
         System.out.println("=================================");
-        System.out.printf("%-4s %-20s %-12s %-10s %-15s%n",
-                "#", "Produto", "Preço Unit.", "Qtd", "Subtotal");
-        System.out.println("-".repeat(65));
+        System.out.printf("%-5s %-20s %-12s %-8s %-12s%n",
+                "ID", "Produto", "Preço Unit.", "Qtd", "Subtotal");
+        System.out.println("-".repeat(60));
 
-        for (int i = 0; i < totalProdutos; i++) {
-            if (categoriaProduto[i] == idx) {
-                double subtotal = precoProdutos[i] * quantProdutos[i];
-                valorCat += subtotal;
+        double valorTotal = 0;
+        int    qtdItens   = 0;
+
+        for (Produto p : produtos) {
+            if (p.getCategoria().getId() == categoria.getId()) {
+                double subtotal = p.getPreco() * p.getQuantidade();
+                valorTotal += subtotal;
                 qtdItens++;
-                System.out.printf("%-4d %-20s R$ %-9.2f %-10d R$ %.2f%n",
-                        qtdItens,
-                        nomeProdutos[i],
-                        precoProdutos[i],
-                        quantProdutos[i],
+                System.out.printf("%-5d %-20s R$ %-9.2f %-8d R$ %.2f%n",
+                        p.getId(),
+                        p.getNome(),
+                        p.getPreco(),
+                        p.getQuantidade(),
                         subtotal);
             }
         }
 
-        System.out.println("-".repeat(65));
-        System.out.println("Total de itens   : " + qtdItens);
-        System.out.printf( "Valor da categoria: R$ %.2f%n", valorCat);
+        System.out.println("-".repeat(60));
+        System.out.println("Total de itens    : " + qtdItens);
+        System.out.printf( "Valor da categoria: R$ %.2f%n", valorTotal);
 
         pressionarEnter();
     }
 
     // ==========================
-    // AUXILIARES DE LISTAGEM
+    // MÉTODOS DE BUSCA
     // ==========================
 
-    public static void listarProdutosResumido() {
-        System.out.printf("%-4s %-20s %-10s%n", "#", "Nome", "Preço");
-        System.out.println("-".repeat(38));
-        for (int i = 0; i < totalProdutos; i++) {
-            System.out.printf("%-4d %-20s R$ %.2f%n",
-                    (i + 1), nomeProdutos[i], precoProdutos[i]);
+    public static Produto buscarProdutoPorId(int id) {
+        for (Produto p : produtos) {
+            if (p.getId() == id) {
+                return p;
+            }
         }
-        System.out.println("-".repeat(38));
+        return null;
     }
 
-    public static void listarCategoriasResumido() {
-        System.out.printf("%-4s %-25s%n", "#", "Categoria");
-        System.out.println("-".repeat(32));
-        for (int i = 0; i < totalCategorias; i++) {
-            System.out.printf("%-4d %-25s%n", (i + 1), nomeCategorias[i]);
+    public static Categoria buscarCategoriaPorId(int id) {
+        for (Categoria c : categorias) {
+            if (c.getId() == id) {
+                return c;
+            }
         }
-        System.out.println("-".repeat(32));
+        return null;
     }
 
-    // ==========================
-    // UTILITÁRIOS
-    // ==========================
-
-    public static int contarProdutosDaCategoria(int idxCategoria) {
+    public static int contarProdutosDaCategoria(Categoria categoria) {
         int count = 0;
-        for (int i = 0; i < totalProdutos; i++) {
-            if (categoriaProduto[i] == idxCategoria) {
+        for (Produto p : produtos) {
+            if (p.getCategoria().getId() == categoria.getId()) {
                 count++;
             }
         }
         return count;
     }
+
+    // ==========================
+    // EXIBIÇÕES AUXILIARES
+    // ==========================
+
+    public static void exibirProdutosResumido() {
+        System.out.printf("%-5s %-20s %-12s%n", "ID", "Nome", "Preço");
+        System.out.println("-".repeat(40));
+        for (Produto p : produtos) {
+            System.out.printf("%-5d %-20s R$ %.2f%n",
+                    p.getId(), p.getNome(), p.getPreco());
+        }
+        System.out.println("-".repeat(40));
+    }
+
+    public static void exibirCategoriasResumido() {
+        System.out.printf("%-5s %-25s%n", "ID", "Categoria");
+        System.out.println("-".repeat(32));
+        for (Categoria c : categorias) {
+            System.out.printf("%-5d %-25s%n", c.getId(), c.getNome());
+        }
+        System.out.println("-".repeat(32));
+    }
+
+    // ==========================
+    // UTILITÁRIOS DE ENTRADA
+    // ==========================
 
     public static int lerInteiroPositivo() {
         while (true) {
@@ -741,7 +737,7 @@ public class MenuPrincipal {
                     return valor;
                 }
             } catch (Exception e) {
-                sc.nextLine(); // descarta entrada inválida
+                sc.nextLine();
                 System.out.print("Entrada inválida. Digite um número inteiro: ");
             }
         }
@@ -750,10 +746,9 @@ public class MenuPrincipal {
     public static double lerDecimalPositivo() {
         while (true) {
             try {
-                double valor = sc.nextDouble();
-                return valor; // validação de negativo fica a cargo do chamador
+                return sc.nextDouble();
             } catch (Exception e) {
-                sc.nextLine(); // descarta entrada inválida
+                sc.nextLine();
                 System.out.print("Entrada inválida. Digite um valor numérico: ");
             }
         }
@@ -767,7 +762,7 @@ public class MenuPrincipal {
 
     public static void pressionarEnter() {
         System.out.println("\nPressione ENTER para continuar...");
-        sc.nextLine(); // limpa buffer
-        sc.nextLine(); // aguarda ENTER
+        sc.nextLine();
+        sc.nextLine();
     }
 }
